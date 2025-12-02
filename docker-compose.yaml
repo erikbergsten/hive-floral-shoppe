@@ -1,0 +1,55 @@
+services:
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    ports:
+      - "8080:8080"
+    environment: {}
+      #JAVA_TOOL_OPTIONS: "-Xmx2G"
+    volumes:
+      - ./trino/catalog:/etc/trino/catalog
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadminpassword"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+  metastore-db:
+    image: postgres:13
+    container_name: metastore-db
+    environment:
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hivepassword
+    volumes:
+      - metastore_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  hive-metastore:
+    image: my-hive:3.1.3
+    container_name: hive-metastore
+    environment:
+      SERVICE_NAME: metastore
+      AWS_ACCESS_KEY: minioadmin
+      AWS_SECRET_KEY: minioadminpassword
+    command: ["/opt/hive/bin/hive", "--name", "metastore-standalone"]
+    #command: ["/bin/sh", "-c", "sleep infinity"]
+    ports:
+      - "9083:9083"
+    restart: unless-stopped
+    volumes:
+    - ./hive:/opt/hive/conf
+
+volumes:
+  minio_data:
+  metastore_db_data:
